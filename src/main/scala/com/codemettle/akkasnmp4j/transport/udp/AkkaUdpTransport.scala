@@ -19,8 +19,8 @@ import akka.actor._
 import akka.io.Udp
 import akka.pattern._
 import akka.util.{ByteString, Timeout}
-import scala.concurrent.{Promise, Await}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Promise}
 
 /**
  * @author steven

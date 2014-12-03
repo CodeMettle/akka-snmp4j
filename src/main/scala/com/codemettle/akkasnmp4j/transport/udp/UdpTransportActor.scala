@@ -93,7 +93,7 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
     extends FSM[fsm.State, fsm.StateData] with Stash {
     startWith(fsm.Starting, fsm.StateData())
 
-    implicit val _ = actorSystem
+    implicit val _ = spray.util.actorSystem
 
     IO(Udp) ! Udp.SimpleSender
 

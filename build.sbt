@@ -46,7 +46,8 @@ resolvers += Deps.snmp4jRepo
 
 libraryDependencies ++= Seq(
     Deps.akkaActor % Provided,
-    Deps.snmp4j % Provided
+    Deps.snmp4j % Provided,
+    Deps.sprayUtil
 )
 
 libraryDependencies ++= Seq(
@@ -62,7 +63,7 @@ libraryDependencies += {
         case Some((2, 11)) => Deps.ficus2_11
         case _ => sys.error("Ficus dependency needs updating")
     }
-} % "test"
+} % Test
 
 publishArtifact in Test := true
 
