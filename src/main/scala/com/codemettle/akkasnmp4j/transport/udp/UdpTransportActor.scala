@@ -22,7 +22,7 @@ import com.codemettle.akkasnmp4j.util.Implicits._
 
 import akka.actor._
 import akka.io.{IO, Udp}
-import akka.util.ByteString
+import akka.util.{Helpers, ByteString}
 import scala.util.control.Exception.ignoring
 
 /**
@@ -93,6 +93,8 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
     extends FSM[fsm.State, fsm.StateData] with Stash {
     startWith(fsm.Starting, fsm.StateData())
 
+    private val msgDispatcherName = Iterator from 0 map (i ⇒ s"msgDispatcher${Helpers.base64(i)}")
+
     implicit val _ = spray.util.actorSystem
 
     IO(Udp) ! Udp.SimpleSender
@@ -109,6 +111,7 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
     when(fsm.Starting) (handleListeners orElse {
         case Event(Udp.SimpleSenderReady, data) ⇒
             log debug "Ready to send UDP packets"
+            context watch sender()
             goto(fsm.SimpleSender) using data.copy(sendActor = sender())
 
         case _ ⇒
@@ -122,8 +125,16 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
 
     when(fsm.SimpleSender) (handleListeners orElse {
         case Event(Stop, data) ⇒
+            context unwatch data.sendActor
             data.sendActor ! PoisonPill
             stop()
+
+        case Event(Terminated(dead), data) ⇒
+            if (dead == data.sendActor) {
+                IO(Udp) ! Udp.SimpleSender
+                goto(fsm.Starting) using data.copy(sendActor = null)
+            } else
+                stay()
 
         case Event(SendMessage(msg, to), data) ⇒
             data.sendActor forward new Udp.Send(msg, to, Ack)
@@ -142,9 +153,21 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
 
         case Event(Udp.Bound(localAddr), data) ⇒
             log.info("UDP bound to {}", localAddr)
-            data.sendActor ! PoisonPill
+
+            if (data.sendActor != null) {
+                context unwatch data.sendActor
+                data.sendActor ! PoisonPill
+            }
+
             data.listenRequestor foreach (_ ! Ack)
-            val msgDispatcher = context.actorOf(MessageReceivedDispatcher.props(transport, localAddr), "msgDispatcher")
+
+            context watch sender()
+
+            data.messageDispatcher foreach (_ ! PoisonPill)
+
+            val msgDispatcher = context
+                .actorOf(MessageReceivedDispatcher.props(transport, localAddr), msgDispatcherName.next())
+
             goto(fsm.SendReceive) using data.copy(sendActor = null, sendRecvActor = sender(), listenRequestor = None,
                 messageDispatcher = Some(msgDispatcher))
 
@@ -162,6 +185,13 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
             log debug "Shutting down"
             goto(fsm.ShuttingDown) using data.copy()
 
+        case Event(Terminated(dead), data) ⇒
+            if (dead == data.sendRecvActor) {
+                IO(Udp) ! Udp.Bind(self, bindAddress)
+                goto(fsm.Binding) using data.copy(sendRecvActor = null)
+            } else
+                stay()
+
         case Event(SendMessage(msg, to), data) ⇒
             data.sendRecvActor forward new Udp.Send(msg, to, Ack)
             stay()
@@ -175,7 +205,9 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
     })
 
     onTransition {
-        case fsm.SendReceive -> fsm.ShuttingDown ⇒ nextStateData.sendRecvActor ! Udp.Unbind
+        case fsm.SendReceive -> fsm.ShuttingDown ⇒
+            context unwatch nextStateData.sendRecvActor
+            nextStateData.sendRecvActor ! Udp.Unbind
     }
 
     when(fsm.ShuttingDown) (handleListeners orElse {
