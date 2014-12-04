@@ -9,7 +9,7 @@ package com.codemettle.akkasnmp4j.util
 
 import java.net.InetSocketAddress
 
-import org.snmp4j.smi.UdpAddress
+import org.snmp4j.smi.{IpAddress, VariableBinding, OID, UdpAddress}
 
 import scala.language.implicitConversions
 
@@ -30,6 +30,21 @@ object Implicits {
         def toInetSocketAddress: InetSocketAddress = new InetSocketAddress(u.getInetAddress, u.getPort)
     }
 
+    implicit class RichString(val u: String) extends AnyVal {
+        def toOid = new OID(u)
+    }
+
+    implicit class RichVariableBinding(val u: VariableBinding) extends AnyVal {
+        def intValue = u.getVariable.toInt
+        def longValue = u.getVariable.toLong
+        def valueString = u.toValueString
+        def ipAddress = u.getVariable match {
+            case a: IpAddress ⇒ a
+            case _ ⇒ sys.error(s"${u.getVariable.getClass.getSimpleName} is not an IpAddress")
+        }
+    }
+
     implicit def inetSocketAddressToUdpAddress(addr: InetSocketAddress): UdpAddress = addr.toUdpAddress
     implicit def udpAddressToInetSocketAddress(addr: UdpAddress): InetSocketAddress = addr.toInetSocketAddress
+    implicit def stringToOid(str: String): OID = str.toOid
 }
