@@ -1,7 +1,7 @@
 /*
  * UdpTransportActor.scala
  *
- * Updated: Dec 3, 2014
+ * Updated: Dec 8, 2014
  *
  * Copyright (c) 2014, CodeMettle
  */
@@ -137,7 +137,8 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
                 stay()
 
         case Event(SendMessage(msg, to), data) ⇒
-            data.sendActor forward new Udp.Send(msg, to, Ack)
+            //data.sendActor forward Udp.Send(msg, to, Ack)
+            data.sendActor ! Udp.Send(msg, to)
             stay()
 
         case Event(StartListening, data) ⇒
@@ -193,7 +194,8 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
                 stay()
 
         case Event(SendMessage(msg, to), data) ⇒
-            data.sendRecvActor forward new Udp.Send(msg, to, Ack)
+            //data.sendRecvActor forward Udp.Send(msg, to, Ack)
+            data.sendRecvActor ! Udp.Send(msg, to)
             stay()
 
         case Event(StartListening, _) ⇒ stay() replying Ack

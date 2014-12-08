@@ -1,7 +1,7 @@
 /*
  * AkkaUdpTransport.scala
  *
- * Updated: Dec 3, 2014
+ * Updated: Dec 8, 2014
  *
  * Copyright (c) 2014, CodeMettle
  */
@@ -16,7 +16,6 @@ import com.codemettle.akkasnmp4j.transport.udp.UdpTransportActor.Messages
 import com.codemettle.akkasnmp4j.util.Implicits._
 
 import akka.actor._
-import akka.io.Udp
 import akka.pattern._
 import akka.util.{ByteString, Timeout}
 import scala.concurrent.duration._
@@ -99,13 +98,15 @@ class AkkaUdpTransport(udpAddr: UdpAddress, name: String)(implicit arf: ActorRef
 
     override def sendMessage(address: UdpAddress, message: Array[Byte],
                              tmStateReference: TransportStateReference): Unit = {
-        val resF = (actor ? Messages.SendMessage(ByteString(message), address)) map {
-            case Messages.Ack ⇒ ()
-            case Udp.CommandFailed ⇒ sys.error("send() failed")
-        } recover {
-            case _: AskTimeoutException ⇒ throw TransportRequestTimeout("sendMessage")
-        }
+//        val resF = (actor ? Messages.SendMessage(ByteString(message), address)) map {
+//            case Messages.Ack ⇒ ()
+//            case Udp.CommandFailed ⇒ sys.error("send() failed")
+//        } recover {
+//            case _: AskTimeoutException ⇒ throw TransportRequestTimeout("sendMessage")
+//        }
 
-        Await.result(resF, Duration.Inf)
+        //Await.result(resF, Duration.Inf)
+
+        actor ! Messages.SendMessage(ByteString(message), address)
     }
 }
