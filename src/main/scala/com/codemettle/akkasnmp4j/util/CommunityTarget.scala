@@ -20,5 +20,7 @@ case class CommunityTarget(addr: Address, community: String = "public") {
 }
 
 object CommunityTarget {
-    def udp(addr: InetAddress, port: Int, community: String = "public") = apply(new UdpAddress(addr, port), community)
+    def udp(addr: InetAddress, port: Int = 161, community: String = "public") = {
+        apply(new UdpAddress(addr, port), community)
+    }
 }
