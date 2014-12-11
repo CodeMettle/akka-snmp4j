@@ -48,7 +48,7 @@ object SnmpClient {
         case class TableFetchNext(event: TableEvent) extends TableFetchEvent {
             def index = event.getIndex
 
-            def column(oid: OID) = event.getColumns find (_.getOid startsWith oid)
+            def column(oid: OID) = event.getColumns find (Option(_) exists (_.getOid startsWith oid))
         }
 
         case class TableFetchComplete(event: TableEvent) extends TableFetchEvent
