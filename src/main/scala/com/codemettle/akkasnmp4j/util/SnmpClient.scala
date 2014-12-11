@@ -12,15 +12,16 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import org.snmp4j.event.{ResponseEvent, ResponseListener}
 import org.snmp4j.smi.{OID, VariableBinding}
-import org.snmp4j.util.{TableEvent, TableListener, DefaultPDUFactory, TableUtils}
+import org.snmp4j.util.{DefaultPDUFactory, TableEvent, TableListener, TableUtils}
 import org.snmp4j.{PDU, Snmp}
 import spray.util.actorSystem
 
 import com.codemettle.akkasnmp4j.config.GetOptions
 import com.codemettle.akkasnmp4j.transport.udp.AkkaUdpTransport
-import com.codemettle.akkasnmp4j.util.SnmpClient.{Messages, FetchTableHandle}
+import com.codemettle.akkasnmp4j.util.SnmpClient.FetchTableHandle
+import com.codemettle.akkasnmp4j.util.SnmpClient.Messages.{TableFetchComplete, TableFetchNext}
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import scala.concurrent.{Future, Promise}
 
 /**
@@ -33,8 +34,8 @@ object SnmpClient {
     }
 
     object Messages {
-        case class TableFetchNext(event: TableEvent) {
-            def index = event.getIndex
+        sealed trait TableFetchEvent {
+            def event: TableEvent
 
             def fetchId = event.getUserObject match {
                 case id: UUID ⇒ id
@@ -42,11 +43,15 @@ object SnmpClient {
             }
 
             def isError = event.isError
+        }
+
+        case class TableFetchNext(event: TableEvent) extends TableFetchEvent {
+            def index = event.getIndex
 
             def column(oid: OID) = event.getColumns find (_.getOid startsWith oid)
         }
 
-        case class TableFetchComplete(fetchId: UUID)
+        case class TableFetchComplete(event: TableEvent) extends TableFetchEvent
     }
 
     def apply(session: Snmp)(implicit arf: ActorRefFactory): SnmpClient = new SnmpClient(session)
@@ -61,10 +66,12 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
     lazy val tableUtils = new TableUtils(session, new DefaultPDUFactory())
 
+    private def defGetOpts = GetOptions(actorSystem)
+
     //private val logger = akka.event.Logging.getLogger(actorSystem, this)
 
     def get(target: CommunityTarget, oids: OID*)
-           (implicit getOpts: GetOptions = GetOptions(actorSystem)): Future[ResponseEvent] = {
+           (implicit getOpts: GetOptions = defGetOpts): Future[ResponseEvent] = {
         val p = Promise[ResponseEvent]()
 
         val pdu = new PDU()
@@ -86,7 +93,7 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
     }
 
     def fetchTable(target: CommunityTarget, oids: OID*)
-                  (implicit eventTarget: ActorRef, getOpts: GetOptions = GetOptions(actorSystem)): FetchTableHandle = {
+                  (implicit eventTarget: ActorRef, getOpts: GetOptions = defGetOpts): FetchTableHandle = {
         val s4jtarget = target.toSnmp4j
         s4jtarget setRetries getOpts.retries
         getOpts.timeout foreach (t ⇒ s4jtarget setTimeout t.toMillis)
@@ -96,19 +103,39 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
         val tl = new TableListener {
             override def next(event: TableEvent): Boolean = {
-                eventTarget ! Messages.TableFetchNext(event)
+                eventTarget ! TableFetchNext(event)
                 !cancelled.get()
             }
 
             override def isFinished: Boolean = false
 
             override def finished(event: TableEvent): Unit = {
-                eventTarget ! Messages.TableFetchComplete(fetchId)
+                eventTarget ! TableFetchComplete(event)
             }
         }
 
         tableUtils.getTable(s4jtarget, oids.toArray, tl, fetchId, null, null)
 
         new FetchTableHandle(fetchId, cancelled)
+    }
+
+    def fetchTableRows(target: CommunityTarget, oids: OID*)
+                      (implicit getOpts: GetOptions = defGetOpts): Future[(Vector[TableFetchNext], TableFetchComplete)] = {
+        val p = Promise[(Vector[TableFetchNext], TableFetchComplete)]()
+
+        implicit val act = arf.actorOf(Props(new Actor {
+            private var rows = Vector.empty[TableFetchNext]
+
+            def receive = {
+                case row: TableFetchNext ⇒ rows +:= row
+                case done: TableFetchComplete ⇒
+                    p success (rows → done)
+                    context stop self
+            }
+        }))
+
+        fetchTable(target, oids: _*)
+
+        p.future
     }
 }
