@@ -36,34 +36,33 @@ pomExtra := {
 
 // Build
 
-scalaVersion := "2.11.7"
+crossScalaVersions := Seq("2.11.7", "2.12.3")
 
-crossScalaVersions := Seq("2.10.4", "2.11.7")
+scalaVersion := crossScalaVersions.value.last
 
 scalacOptions ++= Seq("-unchecked", "-feature", "-deprecation")
+
+scalacOptions += {
+    CrossVersion partialVersion scalaVersion.value match {
+        case Some((x, y)) if x >= 2 && y >= 12 ⇒ "-target:jvm-1.8"
+        case _ ⇒ "-target:jvm-1.6"
+    }
+}
 
 resolvers += Deps.snmp4jRepo
 
 libraryDependencies ++= Seq(
-    Deps.akkaActor % Provided,
-    Deps.snmp4j % Provided,
-    Deps.sprayUtil
-)
+    Deps.akkaActor,
+    Deps.snmp4j
+) map (_ % Provided)
 
 libraryDependencies ++= Seq(
     Deps.akkaSlf,
     Deps.akkaTest,
     Deps.logback,
+    Deps.ficus,
     Deps.scalaTest
 ) map (_ % Test)
-
-libraryDependencies += {
-    CrossVersion partialVersion scalaVersion.value match {
-        case Some((2, 10)) => Deps.ficus2_10
-        case Some((2, 11)) => Deps.ficus2_11
-        case _ => sys.error("Ficus dependency needs updating")
-    }
-} % Test
 
 publishArtifact in Test := true
 

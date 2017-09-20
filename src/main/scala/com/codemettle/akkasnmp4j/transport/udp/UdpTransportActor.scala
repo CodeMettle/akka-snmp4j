@@ -95,7 +95,7 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
 
     private val msgDispatcherName = Iterator from 0 map (i ⇒ s"msgDispatcher${Helpers.base64(i)}")
 
-    implicit val _ = spray.util.actorSystem
+    implicit val _ = util.actorSystem
 
     IO(Udp) ! Udp.SimpleSender
 

@@ -8,7 +8,8 @@
 package com.codemettle.akkasnmp4j.config
 
 import com.typesafe.config.Config
-import spray.util.SettingsCompanion
+
+import com.codemettle.akkasnmp4j.util.SettingsCompanion
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 

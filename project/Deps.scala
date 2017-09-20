@@ -17,8 +17,6 @@ object Deps {
     val logback = "ch.qos.logback" % "logback-classic" % Versions.logback
     val scalaTest = "org.scalatest" %% "scalatest" % Versions.scalaTest
     val snmp4j = "org.snmp4j" % "snmp4j" % Versions.snmp4j
-    val sprayUtil = "io.spray" %% "spray-util" % Versions.spray
 
-    val ficus2_10 = "net.ceedubs" %% "ficus" % Versions.ficus2_10
-    val ficus2_11 = "net.ceedubs" %% "ficus" % Versions.ficus2_11
+    val ficus = "com.iheart" %% "ficus" % Versions.ficus
 }

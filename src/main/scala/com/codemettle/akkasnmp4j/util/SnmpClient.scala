@@ -14,7 +14,6 @@ import org.snmp4j.event.{ResponseEvent, ResponseListener}
 import org.snmp4j.smi.{OID, VariableBinding}
 import org.snmp4j.util.{DefaultPDUFactory, TableEvent, TableListener, TableUtils}
 import org.snmp4j.{PDU, Snmp}
-import spray.util.actorSystem
 
 import com.codemettle.akkasnmp4j.config.GetOptions
 import com.codemettle.akkasnmp4j.transport.udp.AkkaUdpTransport
