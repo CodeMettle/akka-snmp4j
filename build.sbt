@@ -6,7 +6,7 @@ organization := "com.codemettle.akka-snmp4j"
 
 name := "akka-snmp4j"
 
-version := "0.10.0"
+version := "0.10.1-SNAPSHOT"
 
 description := "Library to aid usage of SNMP4J in Scala + Akka"
 
