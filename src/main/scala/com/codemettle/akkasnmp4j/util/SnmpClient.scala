@@ -7,13 +7,16 @@
  */
 package com.codemettle.akkasnmp4j.util
 
+import java.net.InetAddress
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.snmp4j.event.{ResponseEvent, ResponseListener}
-import org.snmp4j.smi.{OID, VariableBinding}
+import org.snmp4j.mp.MPv3
+import org.snmp4j.security.{SecurityModels, SecurityProtocols, USM}
+import org.snmp4j.smi.{OID, OctetString, VariableBinding}
 import org.snmp4j.util.{DefaultPDUFactory, TableEvent, TableListener, TableUtils}
-import org.snmp4j.{PDU, Snmp}
+import org.snmp4j.{PDU, ScopedPDU, Snmp, Target ⇒ snmpTarget}
 
 import com.codemettle.akkasnmp4j.config.GetOptions
 import com.codemettle.akkasnmp4j.transport.udp.AkkaUdpTransport
@@ -56,6 +59,11 @@ object SnmpClient {
     def apply(session: Snmp)(implicit arf: ActorRefFactory): SnmpClient = new SnmpClient(session)
     def apply()(implicit arf: ActorRefFactory): SnmpClient = {
         val sess = new Snmp(new AkkaUdpTransport("UDP"))
+
+        // Set up USM for SNMPv3
+        val usm = new USM(SecurityProtocols.getInstance, new OctetString(MPv3.createLocalEngineID), 0)
+        SecurityModels.getInstance.addSecurityModel(usm)
+
         sess.listen()
         apply(sess)
     }
@@ -63,22 +71,45 @@ object SnmpClient {
 
 class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
-    lazy val tableUtils = new TableUtils(session, new DefaultPDUFactory())
+    private def tableUtils(implicit options: GetOptions): TableUtils = {
+        val factory = new DefaultPDUFactory() {
+            override def createPDU(target: snmpTarget): PDU = {
+                val pdu = super.createPDU(target)
+
+                pdu match {
+                    case spdu: ScopedPDU ⇒ options.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
+                    case _ ⇒
+                }
+
+                pdu
+            }
+        }
+
+        new TableUtils(session, factory)
+    }
 
     private def defGetOpts = GetOptions(actorSystem)
 
     //private val logger = akka.event.Logging.getLogger(actorSystem, this)
 
-    def get(target: CommunityTarget, oids: OID*)
+    def get(addr: InetAddress, oids: OID*)
            (implicit getOpts: GetOptions = defGetOpts): Future[ResponseEvent] = {
         val p = Promise[ResponseEvent]()
 
-        val pdu = new PDU()
+        val pdu = getOpts.version match {
+            case SnmpVersion.v3 ⇒
+                val spdu = new ScopedPDU()
+                getOpts.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
+                spdu
+
+            case _ ⇒ new PDU()
+        }
+
+        pdu.setType(PDU.GET)
+
         oids foreach (o ⇒ pdu add new VariableBinding(o))
 
-        val s4jtarget = target.toSnmp4j
-        s4jtarget setRetries getOpts.retries
-        getOpts.timeout foreach (t ⇒ s4jtarget setTimeout t.toMillis)
+        val s4jtarget = Target.createTarget(session, addr, getOpts)
 
         session.get(pdu, s4jtarget, null, new ResponseListener {
             override def onResponse(event: ResponseEvent): Unit = {
@@ -91,11 +122,9 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
         p.future
     }
 
-    def fetchTable(target: CommunityTarget, oids: OID*)
+    def fetchTable(addr: InetAddress, oids: OID*)
                   (implicit eventTarget: ActorRef, getOpts: GetOptions = defGetOpts): FetchTableHandle = {
-        val s4jtarget = target.toSnmp4j
-        s4jtarget setRetries getOpts.retries
-        getOpts.timeout foreach (t ⇒ s4jtarget setTimeout t.toMillis)
+        val s4jtarget = Target.createTarget(session, addr, getOpts)
 
         val cancelled = new AtomicBoolean(false)
         val fetchId = UUID.randomUUID()
@@ -118,7 +147,7 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
         new FetchTableHandle(fetchId, cancelled)
     }
 
-    def fetchTableRows(target: CommunityTarget, oids: OID*)
+    def fetchTableRows(addr: InetAddress, oids: OID*)
                       (implicit getOpts: GetOptions = defGetOpts): Future[(Vector[TableFetchNext], TableFetchComplete)] = {
         val p = Promise[(Vector[TableFetchNext], TableFetchComplete)]()
 
@@ -133,7 +162,7 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
             }
         }))
 
-        fetchTable(target, oids: _*)
+        fetchTable(addr, oids: _*)
 
         p.future
     }
