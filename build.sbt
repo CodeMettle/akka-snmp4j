@@ -6,7 +6,7 @@ organization := "com.codemettle.akka-snmp4j"
 
 name := "akka-snmp4j"
 
-version := "0.10.1-SNAPSHOT"
+version := "0.11.0-SNAPSHOT"
 
 description := "Library to aid usage of SNMP4J in Scala + Akka"
 
@@ -36,7 +36,7 @@ pomExtra := {
 
 // Build
 
-crossScalaVersions := Seq("2.11.7", "2.12.3")
+crossScalaVersions := Seq("2.11.7", "2.12.5")
 
 scalaVersion := crossScalaVersions.value.last
 
