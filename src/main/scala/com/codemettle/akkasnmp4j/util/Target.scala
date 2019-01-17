@@ -7,18 +7,18 @@ import org.snmp4j.security._
 import org.snmp4j.smi.{OctetString, UdpAddress}
 import org.snmp4j.{CommunityTarget, Snmp, UserTarget, Target ⇒ snmpTarget}
 
-import com.codemettle.akkasnmp4j.config.GetOptions
+import com.codemettle.akkasnmp4j.config.{CredOptions, GetOptions}
 
 object Target {
 
-  private def createCommunityTarget(addr: InetAddress, options: GetOptions): CommunityTarget = {
-    val target = new CommunityTarget(new UdpAddress(addr, options.port), new OctetString(options.readCommunity))
+  private def createCommunityTarget(addr: InetAddress, options: GetOptions, credOptions: CredOptions): CommunityTarget = {
+    val target = new CommunityTarget(new UdpAddress(addr, options.port), new OctetString(credOptions.readCommunity))
     target setRetries options.retries
     options.timeout foreach (t ⇒ target setTimeout t.toMillis)
     target
   }
 
-  private def createUserTarget(session: Snmp, addr: InetAddress, options: GetOptions): UserTarget = {
+  private def createUserTarget(session: Snmp, addr: InetAddress, options: GetOptions, credOpts: CredOptions): UserTarget = {
 
     def lookupV3EngineId(session: Snmp, target: snmpTarget): Array[Byte] = {
       val mpv3 = session.getMessageProcessingModel(MessageProcessingModel.MPv3).asInstanceOf[MPv3]
@@ -34,18 +34,18 @@ object Target {
     target setRetries options.retries
     options.timeout.map(_.toMillis).foreach(target.setTimeout)
 
-    val userName = new OctetString(options.user)
+    val userName = new OctetString(credOpts.user)
     target.setAddress(new UdpAddress(addr, options.port))
     target.setVersion(SnmpConstants.version3)
-    target.setSecurityLevel(options.securityLevel.id)
+    target.setSecurityLevel(credOpts.securityLevel.id)
     target.setSecurityName(userName)
-    val authPassphrase = new OctetString(options.authPassPhrase)
-    val privacyPassphrase = new OctetString(options.privacyPassPhrase)
-    val authProtocolOid = options.authProtocol.map({
+    val authPassphrase = new OctetString(credOpts.authPassPhrase)
+    val privacyPassphrase = new OctetString(credOpts.privacyPassPhrase)
+    val authProtocolOid = credOpts.authProtocol.map({
       case SnmpAuthProtocol.SHA ⇒ AuthSHA.ID
       case SnmpAuthProtocol.MD5 ⇒ AuthMD5.ID
     }).orNull
-    val privacyProtocolOid = options.privacyProtocol.map({
+    val privacyProtocolOid = credOpts.privacyProtocol.map({
       case SnmpPrivacyProtocol.DES ⇒ PrivDES.ID
       case SnmpPrivacyProtocol.AES ⇒ PrivAES128.ID
       case SnmpPrivacyProtocol.AES192 ⇒ PrivAES192.ID
@@ -66,16 +66,16 @@ object Target {
     target
   }
 
-  def createTarget(session: Snmp, addr: InetAddress, options: GetOptions): snmpTarget = {
-    options.version match {
-      case SnmpVersion.v1 ⇒ createCommunityTarget(addr, options)
+  def createTarget(session: Snmp, addr: InetAddress, options: GetOptions, credOptions: CredOptions): snmpTarget = {
+    credOptions.version match {
+      case SnmpVersion.v1 ⇒ createCommunityTarget(addr, options, credOptions)
 
       case SnmpVersion.v2c ⇒
-        val target = createCommunityTarget(addr, options)
+        val target = createCommunityTarget(addr, options, credOptions)
         target.setVersion(SnmpConstants.version2c)
         target
 
-      case SnmpVersion.v3 ⇒ createUserTarget(session, addr, options)
+      case SnmpVersion.v3 ⇒ createUserTarget(session, addr, options, credOptions)
     }
   }
 }

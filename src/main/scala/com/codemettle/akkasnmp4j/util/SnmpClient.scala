@@ -18,7 +18,7 @@ import org.snmp4j.smi.{OID, OctetString, VariableBinding}
 import org.snmp4j.util.{DefaultPDUFactory, TableEvent, TableListener, TableUtils}
 import org.snmp4j.{PDU, ScopedPDU, Snmp, Target ⇒ snmpTarget}
 
-import com.codemettle.akkasnmp4j.config.GetOptions
+import com.codemettle.akkasnmp4j.config.{CredOptions, GetOptions}
 import com.codemettle.akkasnmp4j.transport.udp.AkkaUdpTransport
 import com.codemettle.akkasnmp4j.util.SnmpClient.FetchTableHandle
 import com.codemettle.akkasnmp4j.util.SnmpClient.Messages.{TableFetchComplete, TableFetchNext}
@@ -71,13 +71,13 @@ object SnmpClient {
 
 class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
-    private def tableUtils(implicit options: GetOptions): TableUtils = {
+    private def tableUtils(implicit options: GetOptions, credOpts: CredOptions): TableUtils = {
         val factory = new DefaultPDUFactory() {
             override def createPDU(target: snmpTarget): PDU = {
                 val pdu = super.createPDU(target)
 
                 pdu match {
-                    case spdu: ScopedPDU ⇒ options.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
+                    case spdu: ScopedPDU ⇒ credOpts.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
                     case _ ⇒
                 }
 
@@ -89,17 +89,18 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
     }
 
     private def defGetOpts = GetOptions(actorSystem)
+    private def defCredOpts = CredOptions(actorSystem)
 
     //private val logger = akka.event.Logging.getLogger(actorSystem, this)
 
     def get(addr: InetAddress, oids: OID*)
-           (implicit getOpts: GetOptions = defGetOpts): Future[ResponseEvent] = {
+           (implicit getOpts: GetOptions = defGetOpts, credOpts: CredOptions =  defCredOpts): Future[ResponseEvent] = {
         val p = Promise[ResponseEvent]()
 
-        val pdu = getOpts.version match {
+        val pdu = credOpts.version match {
             case SnmpVersion.v3 ⇒
                 val spdu = new ScopedPDU()
-                getOpts.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
+                credOpts.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
                 spdu
 
             case _ ⇒ new PDU()
@@ -109,7 +110,7 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
         oids foreach (o ⇒ pdu add new VariableBinding(o))
 
-        val s4jtarget = Target.createTarget(session, addr, getOpts)
+        val s4jtarget = Target.createTarget(session, addr, getOpts, credOpts)
 
         session.get(pdu, s4jtarget, null, new ResponseListener {
             override def onResponse(event: ResponseEvent): Unit = {
@@ -123,8 +124,8 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
     }
 
     def fetchTable(addr: InetAddress, oids: OID*)
-                  (implicit eventTarget: ActorRef, getOpts: GetOptions = defGetOpts): FetchTableHandle = {
-        val s4jtarget = Target.createTarget(session, addr, getOpts)
+                  (implicit eventTarget: ActorRef, getOpts: GetOptions = defGetOpts, credOpts: CredOptions = defCredOpts): FetchTableHandle = {
+        val s4jtarget = Target.createTarget(session, addr, getOpts, credOpts)
 
         val cancelled = new AtomicBoolean(false)
         val fetchId = UUID.randomUUID()
@@ -148,7 +149,7 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
     }
 
     def fetchTableRows(addr: InetAddress, oids: OID*)
-                      (implicit getOpts: GetOptions = defGetOpts): Future[(Vector[TableFetchNext], TableFetchComplete)] = {
+                      (implicit getOpts: GetOptions = defGetOpts, credOpts: CredOptions = defCredOpts): Future[(Vector[TableFetchNext], TableFetchComplete)] = {
         val p = Promise[(Vector[TableFetchNext], TableFetchComplete)]()
 
         implicit val act = arf.actorOf(Props(new Actor {
