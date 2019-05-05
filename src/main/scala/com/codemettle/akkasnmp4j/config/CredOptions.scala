@@ -21,7 +21,7 @@ case class CredOptions(version: SnmpVersion.Value = SnmpVersion.v1,
                        authPassPhrase: String,
                        privacyPassPhrase: String,
                        user: String,
-                       readCommunity: String,
+                       readCommunity: String, writeCommunity: String,
                        contextName: Option[String] = None)
 
 object CredOptions extends SettingsCompanion[CredOptions]("akkasnmp4j.cred-defaults") {
@@ -48,12 +48,14 @@ object CredOptions extends SettingsCompanion[CredOptions]("akkasnmp4j.cred-defau
         case "AES" ⇒ Some(SnmpPrivacyProtocol.AES)
         case "AES192" ⇒ Some(SnmpPrivacyProtocol.AES192)
         case "AES256" ⇒ Some(SnmpPrivacyProtocol.AES256)
+        case "CISCO_AES256" ⇒ Some(SnmpPrivacyProtocol.CISCO_AES256)
         case _ ⇒ None
       },
       c getString "auth-passphrase",
       c getString "privacy-passphrase",
       c getString "user",
       c getString "read-community",
+      c getString "write-community",
       Option(c getString "context-name").filter(_.trim.nonEmpty)
     )
   }

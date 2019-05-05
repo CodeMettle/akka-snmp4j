@@ -7,14 +7,14 @@
  */
 package com.codemettle.akkasnmp4j.util
 
-import java.net.InetAddress
+import java.net.{InetAddress, InetSocketAddress}
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.snmp4j.event.{ResponseEvent, ResponseListener}
 import org.snmp4j.mp.MPv3
 import org.snmp4j.security.{SecurityModels, SecurityProtocols, USM}
-import org.snmp4j.smi.{OID, OctetString, VariableBinding}
+import org.snmp4j.smi.{OID, OctetString, Variable, VariableBinding}
 import org.snmp4j.util.{DefaultPDUFactory, TableEvent, TableListener, TableUtils}
 import org.snmp4j.{PDU, ScopedPDU, Snmp, Target ⇒ snmpTarget}
 
@@ -93,8 +93,8 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
     //private val logger = akka.event.Logging.getLogger(actorSystem, this)
 
-    def get(addr: InetAddress, oids: OID*)
-           (implicit getOpts: GetOptions = defGetOpts, credOpts: CredOptions =  defCredOpts): Future[ResponseEvent] = {
+    def send(addr: InetSocketAddress, pduUpd: (PDU) ⇒ Unit, vars: Seq[VariableBinding], forSet: Boolean)
+            (implicit getOpts: GetOptions = defGetOpts, credOpts: CredOptions =  defCredOpts): Future[ResponseEvent] = {
         val p = Promise[ResponseEvent]()
 
         val pdu = credOpts.version match {
@@ -106,13 +106,12 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
             case _ ⇒ new PDU()
         }
 
-        pdu.setType(PDU.GET)
+        pduUpd(pdu)
+        vars.foreach(pdu.add)
 
-        oids foreach (o ⇒ pdu add new VariableBinding(o))
+        val s4jtarget = Target.createTarget(session, addr, getOpts, credOpts, forSet)
 
-        val s4jtarget = Target.createTarget(session, addr, getOpts, credOpts)
-
-        session.get(pdu, s4jtarget, null, new ResponseListener {
+        session.send(pdu, s4jtarget, null, new ResponseListener {
             override def onResponse(event: ResponseEvent): Unit = {
                 session.cancel(event.getRequest, this)
 
@@ -123,8 +122,26 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
         p.future
     }
 
+    @deprecated("Use method that takes InetSocketAddress", "0.12.0")
+    def get(addr: InetAddress, oids: OID*)
+           (implicit getOpts: GetOptions = defGetOpts, credOpts: CredOptions =  defCredOpts): Future[ResponseEvent] =
+        send(new InetSocketAddress(addr, getOpts.port), _.setType(PDU.GET), oids.map(new VariableBinding(_)), forSet = false)
+
+    def get(addr: InetSocketAddress, oids: OID*)
+           (implicit getOpts: GetOptions, credOpts: CredOptions): Future[ResponseEvent] =
+        send(addr, _.setType(PDU.GET), oids.map(new VariableBinding(_)), forSet = false)
+
+    def set(addr: InetSocketAddress, sets: (OID, Variable)*)
+           (implicit getOpts: GetOptions, credOpts: CredOptions): Future[ResponseEvent] =
+        send(addr, _.setType(PDU.SET), sets.map(e ⇒ new VariableBinding(e._1, e._2)), forSet = true)
+
+    @deprecated("Use method that takes InetSocketAddress", "0.12.0")
     def fetchTable(addr: InetAddress, oids: OID*)
-                  (implicit eventTarget: ActorRef, getOpts: GetOptions = defGetOpts, credOpts: CredOptions = defCredOpts): FetchTableHandle = {
+                  (implicit eventTarget: ActorRef, getOpts: GetOptions = defGetOpts, credOpts: CredOptions = defCredOpts): FetchTableHandle =
+        fetchTable(new InetSocketAddress(addr, getOpts.port), oids: _*)
+
+    def fetchTable(addr: InetSocketAddress, oids: OID*)
+                  (implicit eventTarget: ActorRef, getOpts: GetOptions, credOpts: CredOptions): FetchTableHandle = {
         val s4jtarget = Target.createTarget(session, addr, getOpts, credOpts)
 
         val cancelled = new AtomicBoolean(false)
@@ -148,8 +165,13 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
         new FetchTableHandle(fetchId, cancelled)
     }
 
-    def fetchTableRows(addr: InetAddress, oids: OID*)
-                      (implicit getOpts: GetOptions = defGetOpts, credOpts: CredOptions = defCredOpts): Future[(Vector[TableFetchNext], TableFetchComplete)] = {
+    @deprecated("Use method that takes InetSocketAddress", "0.12.0")
+    def fetchTableRows(ipAddr: InetAddress, oids: OID*)
+                      (implicit getOpts: GetOptions, credOpts: CredOptions): Future[(Vector[TableFetchNext], TableFetchComplete)] =
+        fetchTableRows(new InetSocketAddress(ipAddr, getOpts.port), oids: _*)
+
+    def fetchTableRows(addr: InetSocketAddress, oids: OID*)
+                      (implicit getOpts: GetOptions, credOpts: CredOptions): Future[(Vector[TableFetchNext], TableFetchComplete)] = {
         val p = Promise[(Vector[TableFetchNext], TableFetchComplete)]()
 
         implicit val act = arf.actorOf(Props(new Actor {

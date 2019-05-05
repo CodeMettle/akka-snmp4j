@@ -16,7 +16,7 @@ package object util {
 
   object SnmpPrivacyProtocol extends Enumeration {
     type SnmpPrivacyProtocol = Value
-    val DES, AES, AES192, AES256 = Value
+    val DES, AES, AES192, AES256, CISCO_AES256 = Value
   }
 
   object SnmpAuthProtocol extends Enumeration {
