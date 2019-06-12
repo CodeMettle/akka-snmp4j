@@ -6,7 +6,7 @@ import org.snmp4j.mp.{MPv3, MessageProcessingModel, SnmpConstants}
 import org.snmp4j.security._
 import org.snmp4j.security.nonstandard.PrivAES256With3DESKeyExtension
 import org.snmp4j.smi.{OctetString, UdpAddress}
-import org.snmp4j.{CommunityTarget, Snmp, UserTarget, Target ⇒ snmpTarget}
+import org.snmp4j.{CommunityTarget, Snmp, UserTarget, Target => snmpTarget}
 
 import com.codemettle.akkasnmp4j.config.{CredOptions, GetOptions}
 
@@ -17,7 +17,7 @@ object Target {
     val comm = new OctetString(if (forWrite) credOptions.writeCommunity else credOptions.readCommunity)
     val target = new CommunityTarget(new UdpAddress(addr.getAddress, addr.getPort), comm)
     target setRetries options.retries
-    options.timeout foreach (t ⇒ target setTimeout t.toMillis)
+    options.timeout foreach (t => target setTimeout t.toMillis)
     target
   }
 
@@ -45,15 +45,15 @@ object Target {
     val authPassphrase = new OctetString(credOpts.authPassPhrase)
     val privacyPassphrase = new OctetString(credOpts.privacyPassPhrase)
     val authProtocolOid = credOpts.authProtocol.map({
-      case SnmpAuthProtocol.SHA ⇒ AuthSHA.ID
-      case SnmpAuthProtocol.MD5 ⇒ AuthMD5.ID
+      case SnmpAuthProtocol.SHA => AuthSHA.ID
+      case SnmpAuthProtocol.MD5 => AuthMD5.ID
     }).orNull
     val privacyProtocolOid = credOpts.privacyProtocol.map({
-      case SnmpPrivacyProtocol.DES ⇒ PrivDES.ID
-      case SnmpPrivacyProtocol.AES ⇒ PrivAES128.ID
-      case SnmpPrivacyProtocol.AES192 ⇒ PrivAES192.ID
-      case SnmpPrivacyProtocol.AES256 ⇒ PrivAES256.ID
-      case SnmpPrivacyProtocol.CISCO_AES256 ⇒ PrivAES256With3DESKeyExtension.ID
+      case SnmpPrivacyProtocol.DES => PrivDES.ID
+      case SnmpPrivacyProtocol.AES => PrivAES128.ID
+      case SnmpPrivacyProtocol.AES192 => PrivAES192.ID
+      case SnmpPrivacyProtocol.AES256 => PrivAES256.ID
+      case SnmpPrivacyProtocol.CISCO_AES256 => PrivAES256With3DESKeyExtension.ID
     }).orNull
 
     val engineId = lookupV3EngineId(session, target)
@@ -73,14 +73,14 @@ object Target {
   def createTarget(session: Snmp, addr: InetSocketAddress, options: GetOptions, credOptions: CredOptions,
                    forWrite: Boolean = false): snmpTarget = {
     credOptions.version match {
-      case SnmpVersion.v1 ⇒ createCommunityTarget(addr, options, credOptions)
+      case SnmpVersion.v1 => createCommunityTarget(addr, options, credOptions)
 
-      case SnmpVersion.v2c ⇒
+      case SnmpVersion.v2c =>
         val target = createCommunityTarget(addr, options, credOptions)
         target.setVersion(SnmpConstants.version2c)
         target
 
-      case SnmpVersion.v3 ⇒ createUserTarget(session, addr, options, credOptions)
+      case SnmpVersion.v3 => createUserTarget(session, addr, options, credOptions)
     }
   }
 

@@ -16,7 +16,7 @@ import org.snmp4j.mp.MPv3
 import org.snmp4j.security.{SecurityModels, SecurityProtocols, USM}
 import org.snmp4j.smi.{OID, OctetString, Variable, VariableBinding}
 import org.snmp4j.util.{DefaultPDUFactory, TableEvent, TableListener, TableUtils}
-import org.snmp4j.{PDU, ScopedPDU, Snmp, Target ⇒ snmpTarget}
+import org.snmp4j.{PDU, ScopedPDU, Snmp, Target => snmpTarget}
 
 import com.codemettle.akkasnmp4j.config.{CredOptions, GetOptions}
 import com.codemettle.akkasnmp4j.transport.udp.AkkaUdpTransport
@@ -40,8 +40,8 @@ object SnmpClient {
             def event: TableEvent
 
             def fetchId = event.getUserObject match {
-                case id: UUID ⇒ id
-                case _ ⇒ sys.error("unknown userObject")
+                case id: UUID => id
+                case _ => sys.error("unknown userObject")
             }
 
             def isError = event.isError
@@ -77,8 +77,8 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
                 val pdu = super.createPDU(target)
 
                 pdu match {
-                    case spdu: ScopedPDU ⇒ credOpts.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
-                    case _ ⇒
+                    case spdu: ScopedPDU => credOpts.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
+                    case _ =>
                 }
 
                 pdu
@@ -93,17 +93,17 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
     //private val logger = akka.event.Logging.getLogger(actorSystem, this)
 
-    def send(addr: InetSocketAddress, pduUpd: (PDU) ⇒ Unit, vars: Seq[VariableBinding], forSet: Boolean)
+    def send(addr: InetSocketAddress, pduUpd: (PDU) => Unit, vars: Iterable[VariableBinding], forSet: Boolean)
             (implicit getOpts: GetOptions = defGetOpts, credOpts: CredOptions =  defCredOpts): Future[ResponseEvent] = {
         val p = Promise[ResponseEvent]()
 
         val pdu = credOpts.version match {
-            case SnmpVersion.v3 ⇒
+            case SnmpVersion.v3 =>
                 val spdu = new ScopedPDU()
                 credOpts.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
                 spdu
 
-            case _ ⇒ new PDU()
+            case _ => new PDU()
         }
 
         pduUpd(pdu)
@@ -133,7 +133,7 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
     def set(addr: InetSocketAddress, sets: (OID, Variable)*)
            (implicit getOpts: GetOptions, credOpts: CredOptions): Future[ResponseEvent] =
-        send(addr, _.setType(PDU.SET), sets.map(e ⇒ new VariableBinding(e._1, e._2)), forSet = true)
+        send(addr, _.setType(PDU.SET), sets.map(e => new VariableBinding(e._1, e._2)), forSet = true)
 
     @deprecated("Use method that takes InetSocketAddress", "0.12.0")
     def fetchTable(addr: InetAddress, oids: OID*)
@@ -178,9 +178,9 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
             private var rows = Vector.empty[TableFetchNext]
 
             def receive = {
-                case row: TableFetchNext ⇒ rows +:= row
-                case done: TableFetchComplete ⇒
-                    p success (rows → done)
+                case row: TableFetchNext => rows +:= row
+                case done: TableFetchComplete =>
+                    p success (rows -> done)
                     context stop self
             }
         }))

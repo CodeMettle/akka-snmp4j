@@ -28,28 +28,28 @@ object CredOptions extends SettingsCompanion[CredOptions]("akkasnmp4j.cred-defau
   override def fromSubConfig(c: Config): CredOptions = {
     apply(
       c.getString("version").toLowerCase match {
-        case "v1" ⇒ SnmpVersion.v1
-        case "v2c" ⇒ SnmpVersion.v2c
-        case "v3" ⇒ SnmpVersion.v3
-        case _ ⇒ SnmpVersion.v1
+        case "v1" => SnmpVersion.v1
+        case "v2c" => SnmpVersion.v2c
+        case "v3" => SnmpVersion.v3
+        case _ => SnmpVersion.v1
       },
       c.getString("security-level").toLowerCase match {
-        case "authnopriv" ⇒ SnmpSecurityLevel.authNoPriv
-        case "authpriv" ⇒ SnmpSecurityLevel.authPriv
-        case _ ⇒ SnmpSecurityLevel.noAuthNoPriv
+        case "authnopriv" => SnmpSecurityLevel.authNoPriv
+        case "authpriv" => SnmpSecurityLevel.authPriv
+        case _ => SnmpSecurityLevel.noAuthNoPriv
       },
       c.getString("auth-protocol").toUpperCase match {
-        case "SHA" ⇒ Some(SnmpAuthProtocol.SHA)
-        case "MD5" ⇒ Some(SnmpAuthProtocol.MD5)
-        case _ ⇒ None
+        case "SHA" => Some(SnmpAuthProtocol.SHA)
+        case "MD5" => Some(SnmpAuthProtocol.MD5)
+        case _ => None
       },
       c.getString("privacy-protocol").toUpperCase match {
-        case "DES" ⇒ Some(SnmpPrivacyProtocol.DES)
-        case "AES" ⇒ Some(SnmpPrivacyProtocol.AES)
-        case "AES192" ⇒ Some(SnmpPrivacyProtocol.AES192)
-        case "AES256" ⇒ Some(SnmpPrivacyProtocol.AES256)
-        case "CISCO_AES256" ⇒ Some(SnmpPrivacyProtocol.CISCO_AES256)
-        case _ ⇒ None
+        case "DES" => Some(SnmpPrivacyProtocol.DES)
+        case "AES" => Some(SnmpPrivacyProtocol.AES)
+        case "AES192" => Some(SnmpPrivacyProtocol.AES192)
+        case "AES256" => Some(SnmpPrivacyProtocol.AES256)
+        case "CISCO_AES256" => Some(SnmpPrivacyProtocol.CISCO_AES256)
+        case _ => None
       },
       c getString "auth-passphrase",
       c getString "privacy-passphrase",

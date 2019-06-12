@@ -39,8 +39,8 @@ object Implicits {
         def longValue = u.getVariable.toLong
         def valueString = u.toValueString
         def ipAddress = u.getVariable match {
-            case a: IpAddress ⇒ a
-            case _ ⇒ sys.error(s"${u.getVariable.getClass.getSimpleName} is not an IpAddress")
+            case a: IpAddress => a
+            case _ => sys.error(s"${u.getVariable.getClass.getSimpleName} is not an IpAddress")
         }
     }
 

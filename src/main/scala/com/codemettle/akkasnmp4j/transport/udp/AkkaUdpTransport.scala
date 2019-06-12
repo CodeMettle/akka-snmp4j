@@ -36,9 +36,9 @@ class AkkaUdpTransport(udpAddr: UdpAddress, name: String)(implicit arf: ActorRef
     private implicit val timeout = Timeout(10.seconds)
 
     private def blockingRequest(call: Any, fromMethod: String) = {
-        val resF = (actor ? call) transform(_ ⇒ (), {
-            case _: AskTimeoutException ⇒ TransportRequestTimeout(fromMethod)
-            case ex ⇒ ex
+        val resF = (actor ? call) transform(_ => (), {
+            case _: AskTimeoutException => TransportRequestTimeout(fromMethod)
+            case ex => ex
         })
 
         Await.result(resF, Duration.Inf)
@@ -54,7 +54,7 @@ class AkkaUdpTransport(udpAddr: UdpAddress, name: String)(implicit arf: ActorRef
 
     override def isListening: Boolean = {
         val resF = (actor ? Messages.IsListening).mapTo[Boolean] recover {
-            case _: AskTimeoutException ⇒ throw TransportRequestTimeout("isListening")
+            case _: AskTimeoutException => throw TransportRequestTimeout("isListening")
         }
 
         Await.result(resF, Duration.Inf)
@@ -83,11 +83,11 @@ class AkkaUdpTransport(udpAddr: UdpAddress, name: String)(implicit arf: ActorRef
             }
 
             def receive = {
-                case Terminated(`actor`) ⇒
-                    p success ()
+                case Terminated(`actor`) =>
+                    p.success({})
                     context stop self
 
-                case ReceiveTimeout ⇒
+                case ReceiveTimeout =>
                     p failure TransportRequestTimeout("close")
                     context stop self
             }
@@ -99,10 +99,10 @@ class AkkaUdpTransport(udpAddr: UdpAddress, name: String)(implicit arf: ActorRef
     override def sendMessage(address: UdpAddress, message: Array[Byte],
                              tmStateReference: TransportStateReference): Unit = {
 //        val resF = (actor ? Messages.SendMessage(ByteString(message), address)) map {
-//            case Messages.Ack ⇒ ()
-//            case Udp.CommandFailed ⇒ sys.error("send() failed")
+//            case Messages.Ack => ()
+//            case Udp.CommandFailed => sys.error("send() failed")
 //        } recover {
-//            case _: AskTimeoutException ⇒ throw TransportRequestTimeout("sendMessage")
+//            case _: AskTimeoutException => throw TransportRequestTimeout("sendMessage")
 //        }
 
         //Await.result(resF, Duration.Inf)

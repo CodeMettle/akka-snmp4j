@@ -25,8 +25,8 @@ object GetOptions extends SettingsCompanion[GetOptions]("akkasnmp4j.get-defaults
             c getInt "port",
             c getInt "retries",
             Option(c getString "timeout") map (Duration(_)) match {
-                case Some(fd: FiniteDuration) ⇒ Some(fd)
-                case _ ⇒ None
+                case Some(fd: FiniteDuration) => Some(fd)
+                case _ => None
             }
         )
     }

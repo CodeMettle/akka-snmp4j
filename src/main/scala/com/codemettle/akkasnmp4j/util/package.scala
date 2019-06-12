@@ -9,9 +9,9 @@ package object util {
   import scala.language.implicitConversions
 
   implicit def actorSystem(implicit arf: ActorRefFactory): ActorSystem = arf match {
-    case s: ActorSystem ⇒ s
-    case c: ActorContext ⇒ c.system
-    case _ ⇒ sys.error("Unsupported ActorRefFactory")
+    case s: ActorSystem => s
+    case c: ActorContext => c.system
+    case _ => sys.error("Unsupported ActorRefFactory")
   }
 
   object SnmpPrivacyProtocol extends Enumeration {

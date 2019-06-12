@@ -70,8 +70,8 @@ private[udp] object UdpTransportActor {
             SecurityLevel.undefined, false, null)
 
         def receive = {
-            case DispatchMessageReceived(listeners, msg, fromAddr) ⇒
-                listeners foreach (list ⇒ {
+            case DispatchMessageReceived(listeners, msg, fromAddr) =>
+                listeners foreach (list => {
                     ignoring(classOf[Exception])(
                         list.processMessage(transport, fromAddr, msg.asByteBuffer, stateReference))
                 })
@@ -93,66 +93,66 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
     extends FSM[fsm.State, fsm.StateData] with Stash {
     startWith(fsm.Starting, fsm.StateData())
 
-    private val msgDispatcherName = Iterator from 0 map (i ⇒ s"msgDispatcher${Helpers.base64(i)}")
+    private val msgDispatcherName = Iterator from 0 map (i => s"msgDispatcher${Helpers.base64(i)}")
 
     implicit val system: ActorSystem = util.actorSystem
 
     IO(Udp) ! Udp.SimpleSender
 
     whenUnhandled {
-        case Event(IsListening, data) ⇒ stay() replying data.isListening
+        case Event(IsListening, data) => stay() replying data.isListening
     }
 
     def handleListeners: StateFunction = {
-        case Event(AddListener(list), data) ⇒ stay() using data.copy(listeners = data.listeners + list) replying Ack
-        case Event(RemoveListener(list), data) ⇒ stay() using data.copy(listeners = data.listeners - list) replying Ack
+        case Event(AddListener(list), data) => stay() using data.copy(listeners = data.listeners + list) replying Ack
+        case Event(RemoveListener(list), data) => stay() using data.copy(listeners = data.listeners - list) replying Ack
     }
 
     when(fsm.Starting) (handleListeners orElse {
-        case Event(Udp.SimpleSenderReady, data) ⇒
+        case Event(Udp.SimpleSenderReady, data) =>
             log debug "Ready to send UDP packets"
             context watch sender()
             goto(fsm.SimpleSender) using data.copy(sendActor = sender())
 
-        case _ ⇒
+        case _ =>
             stash()
             stay()
     })
 
     onTransition {
-        case fsm.Starting -> fsm.SimpleSender ⇒ unstashAll()
+        case fsm.Starting -> fsm.SimpleSender => unstashAll()
     }
 
     when(fsm.SimpleSender) (handleListeners orElse {
-        case Event(Stop, data) ⇒
+        case Event(Stop, data) =>
             context unwatch data.sendActor
             data.sendActor ! PoisonPill
             stop()
 
-        case Event(Terminated(dead), data) ⇒
+        case Event(Terminated(dead), data) =>
             if (dead == data.sendActor) {
                 IO(Udp) ! Udp.SimpleSender
                 goto(fsm.Starting) using data.copy(sendActor = null)
             } else
                 stay()
 
-        case Event(SendMessage(msg, to), data) ⇒
+        case Event(SendMessage(msg, to), data) =>
             //data.sendActor forward Udp.Send(msg, to, Ack)
             data.sendActor ! Udp.Send(msg, to)
             stay()
 
-        case Event(StartListening, data) ⇒
+        case Event(StartListening, data) =>
             IO(Udp) ! Udp.Bind(self, bindAddress)
             goto(fsm.Binding) using data.copy(listenRequestor = Some(sender()))
     })
 
     when(fsm.Binding) (handleListeners orElse {
-        case Event(_: Udp.CommandFailed, data) ⇒
+        case Event(_: Udp.CommandFailed, data) =>
             log.error("Failed to bind to {}", bindAddress)
             data.listenRequestor foreach (_ ! Status.Failure(BindFailedException(bindAddress)))
             goto(fsm.SimpleSender) using data.copy(listenRequestor = None)
 
-        case Event(Udp.Bound(localAddr), data) ⇒
+        case Event(Udp.Bound(localAddr), data) =>
             log.info("UDP bound to {}", localAddr)
 
             if (data.sendActor != null) {
@@ -172,52 +172,52 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
             goto(fsm.SendReceive) using data.copy(sendActor = null, sendRecvActor = sender(), listenRequestor = None,
                 messageDispatcher = Some(msgDispatcher))
 
-        case _ ⇒
+        case _ =>
             stash()
             stay()
     })
 
     onTransition {
-        case fsm.Binding -> _ ⇒ unstashAll()
+        case fsm.Binding -> _ => unstashAll()
     }
 
     when(fsm.SendReceive) (handleListeners orElse {
-        case Event(Stop, data) ⇒
+        case Event(Stop, data) =>
             log debug "Shutting down"
             goto(fsm.ShuttingDown) using data.copy()
 
-        case Event(Terminated(dead), data) ⇒
+        case Event(Terminated(dead), data) =>
             if (dead == data.sendRecvActor) {
                 IO(Udp) ! Udp.Bind(self, bindAddress)
                 goto(fsm.Binding) using data.copy(sendRecvActor = null)
             } else
                 stay()
 
-        case Event(SendMessage(msg, to), data) ⇒
+        case Event(SendMessage(msg, to), data) =>
             //data.sendRecvActor forward Udp.Send(msg, to, Ack)
             data.sendRecvActor ! Udp.Send(msg, to)
             stay()
 
-        case Event(StartListening, _) ⇒ stay() replying Ack
+        case Event(StartListening, _) => stay() replying Ack
 
-        case Event(Udp.Received(msg, from), data) ⇒
+        case Event(Udp.Received(msg, from), data) =>
             data.messageDispatcher foreach (_ ! DispatchMessageReceived(data.listeners, msg, from))
 
             stay()
     })
 
     onTransition {
-        case fsm.SendReceive -> fsm.ShuttingDown ⇒
+        case fsm.SendReceive -> fsm.ShuttingDown =>
             context unwatch nextStateData.sendRecvActor
             nextStateData.sendRecvActor ! Udp.Unbind
     }
 
     when(fsm.ShuttingDown) (handleListeners orElse {
-        case Event(Udp.Unbound, _) ⇒ stop()
+        case Event(Udp.Unbound, _) => stop()
 
-        case Event(IsListening, _) ⇒ stay() replying true
+        case Event(IsListening, _) => stay() replying true
 
-        case Event(_, _) ⇒ stay() replying Status.Failure(TransportShuttingDownException())
+        case Event(_, _) => stay() replying Status.Failure(TransportShuttingDownException())
     })
 
     initialize()
