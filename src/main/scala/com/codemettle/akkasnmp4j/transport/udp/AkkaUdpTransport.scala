@@ -84,7 +84,7 @@ class AkkaUdpTransport(udpAddr: UdpAddress, name: String)(implicit arf: ActorRef
 
             def receive = {
                 case Terminated(`actor`) ⇒
-                    p success Unit
+                    p success ()
                     context stop self
 
                 case ReceiveTimeout ⇒
