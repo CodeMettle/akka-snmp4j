@@ -13,5 +13,5 @@ object Versions {
     val slf4j = "1.7.7"
     val snmp4j = "2.2.3"
 
-    val ficus = "1.4.7-SNAPSHOT"
+    val ficus = "1.4.7"
 }
