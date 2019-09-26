@@ -73,10 +73,10 @@ object Target {
   def createTarget(session: Snmp, addr: InetSocketAddress, options: GetOptions, credOptions: CredOptions,
                    forWrite: Boolean = false): snmpTarget = {
     credOptions.version match {
-      case SnmpVersion.v1 => createCommunityTarget(addr, options, credOptions)
+      case SnmpVersion.v1 => createCommunityTarget(addr, options, credOptions, forWrite)
 
       case SnmpVersion.v2c =>
-        val target = createCommunityTarget(addr, options, credOptions)
+        val target = createCommunityTarget(addr, options, credOptions, forWrite)
         target.setVersion(SnmpConstants.version2c)
         target
 
