@@ -95,7 +95,7 @@ private[udp] class UdpTransportActor(bindAddress: InetSocketAddress, transport: 
 
     private val msgDispatcherName = Iterator from 0 map (i => s"msgDispatcher${Helpers.base64(i)}")
 
-    implicit val system: ActorSystem = util.actorSystem
+    implicit val system: ActorSystem = context.system
 
     IO(Udp) ! Udp.SimpleSender
 
