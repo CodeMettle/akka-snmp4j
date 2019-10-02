@@ -11,7 +11,7 @@ package object util {
   implicit def actorSystem(implicit arf: ActorRefFactory): ActorSystem = arf match {
     case s: ActorSystem => s
     case c: ActorContext => c.system
-    case _ => sys.error("Unsupported ActorRefFactory")
+    case _ => sys.error(s"Unsupported ActorRefFactory: $arf")
   }
 
   object SnmpPrivacyProtocol extends Enumeration {
