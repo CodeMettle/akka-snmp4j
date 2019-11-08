@@ -15,7 +15,7 @@ import org.snmp4j.event.{ResponseEvent, ResponseListener}
 import org.snmp4j.mp.MPv3
 import org.snmp4j.security.{SecurityModels, SecurityProtocols, USM}
 import org.snmp4j.smi.{OID, OctetString, Variable, VariableBinding}
-import org.snmp4j.util.{DefaultPDUFactory, TableEvent, TableListener, TableUtils}
+import org.snmp4j.util._
 import org.snmp4j.{PDU, ScopedPDU, Snmp, Target => snmpTarget}
 
 import com.codemettle.akkasnmp4j.config.{CredOptions, GetOptions}
@@ -23,7 +23,8 @@ import com.codemettle.akkasnmp4j.transport.udp.AkkaUdpTransport
 import com.codemettle.akkasnmp4j.util.SnmpClient.FetchTableHandle
 import com.codemettle.akkasnmp4j.util.SnmpClient.Messages.{TableFetchComplete, TableFetchNext}
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
+import akka.stream.scaladsl.Source
 import scala.concurrent.{Future, Promise}
 
 /**
@@ -86,6 +87,23 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
         }
 
         new TableUtils(session, factory)
+    }
+
+    private def treeUtils(implicit options: GetOptions, credOpts: CredOptions): TreeUtils = {
+        val factory = new DefaultPDUFactory() {
+            override def createPDU(target: snmpTarget): PDU = {
+                val pdu = super.createPDU(target)
+
+                pdu match {
+                    case spdu: ScopedPDU => credOpts.contextName.map(new OctetString(_)).foreach(spdu.setContextName)
+                    case _ =>
+                }
+
+                pdu
+            }
+        }
+
+        new TreeUtils(session, factory)
     }
 
     private def defGetOpts = GetOptions(actorSystem)
@@ -188,5 +206,12 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
         fetchTable(addr, oids: _*)
 
         p.future
+    }
+
+    def walk(addr: InetSocketAddress, rootOids: OID*)
+            (implicit getOpts: GetOptions, credOpts: CredOptions): Source[TreeEvent, Cancellable] = {
+        val s4jtarget = Target.createTarget(session, addr, getOpts, credOpts)
+
+        Source.fromGraph(new TreeEventGraph(treeUtils, s4jtarget, rootOids: _*))
     }
 }
