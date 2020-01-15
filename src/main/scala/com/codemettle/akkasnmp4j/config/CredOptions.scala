@@ -48,7 +48,7 @@ object CredOptions extends SettingsCompanion[CredOptions]("akkasnmp4j.cred-defau
         case "AES" => Some(SnmpPrivacyProtocol.AES)
         case "AES192" => Some(SnmpPrivacyProtocol.AES192)
         case "AES256" => Some(SnmpPrivacyProtocol.AES256)
-        case "CISCO_AES256" => Some(SnmpPrivacyProtocol.CISCO_AES256)
+        case "CISCO_AES256" | "CISCOAES256" => Some(SnmpPrivacyProtocol.CISCO_AES256)
         case _ => None
       },
       c getString "auth-passphrase",
