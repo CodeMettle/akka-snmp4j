@@ -51,6 +51,7 @@ resolvers += Deps.snmp4jRepo
 
 libraryDependencies ++= Seq(
   Deps.akkaActor,
+  Deps.akkaStream,
   Deps.snmp4j
 ) map (_ % Provided)
 
