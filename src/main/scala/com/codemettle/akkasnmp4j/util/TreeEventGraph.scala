@@ -1,16 +1,17 @@
 package com.codemettle.akkasnmp4j.util
 
-import org.snmp4j.Target
+import java.util.concurrent.atomic.AtomicBoolean
+
 import org.snmp4j.smi.OID
 import org.snmp4j.util.{TreeEvent, TreeListener, TreeUtils}
+import org.snmp4j.{Target => snmpTarget}
 
 import akka.actor.Cancellable
 import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, OutHandler}
 import akka.stream.{Attributes, Outlet, SourceShape}
 import scala.collection.mutable
 
-class TreeEventGraph(treeUtils: TreeUtils, target: Target, rootOids: OID*) extends GraphStageWithMaterializedValue[SourceShape[TreeEvent], Cancellable] {
-  import java.util.concurrent.atomic.AtomicBoolean
+class TreeEventGraph(treeUtils: TreeUtils, target: snmpTarget, rootOids: OID*) extends GraphStageWithMaterializedValue[SourceShape[TreeEvent], Cancellable] {
 
   val out: Outlet[TreeEvent] = Outlet("TreeEventSource")
 
@@ -52,6 +53,7 @@ class TreeEventGraph(treeUtils: TreeUtils, target: Target, rootOids: OID*) exten
           }
         }
       )
+
       override def preStart(): Unit = {
         val acb = createAsyncCallback[TreeEvent](event => nextElem(event))
 
@@ -84,6 +86,7 @@ class TreeEventGraph(treeUtils: TreeUtils, target: Target, rootOids: OID*) exten
 
       override def isCancelled: Boolean = isDone.get
     }
+
     (logic, logic)
   }
 }
