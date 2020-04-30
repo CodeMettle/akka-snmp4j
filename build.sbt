@@ -40,15 +40,6 @@ scalaVersion := crossScalaVersions.value.last
 
 scalacOptions ++= Seq("-unchecked", "-feature", "-deprecation")
 
-scalacOptions += {
-  CrossVersion partialVersion scalaVersion.value match {
-    case Some((x, y)) if x >= 2 && y >= 12 => "-target:jvm-1.8"
-    case _ => "-target:jvm-1.6"
-  }
-}
-
-resolvers += Deps.snmp4jRepo
-
 libraryDependencies ++= Seq(
   Deps.akkaActor,
   Deps.akkaStream,

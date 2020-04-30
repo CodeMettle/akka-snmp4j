@@ -9,8 +9,6 @@
 import sbt._
 
 object Deps {
-    val snmp4jRepo = "snmp4j repo" at "https://oosnmp.net/dist/release"
-
     val akkaActor = "com.typesafe.akka" %% "akka-actor" % Versions.akka
     val akkaStream = "com.typesafe.akka" %% "akka-stream" % Versions.akka
     val akkaSlf = "com.typesafe.akka" %% "akka-slf4j" % Versions.akka
