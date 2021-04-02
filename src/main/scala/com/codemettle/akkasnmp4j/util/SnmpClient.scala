@@ -9,7 +9,7 @@ package com.codemettle.akkasnmp4j.util
 
 import java.net.{InetAddress, InetSocketAddress}
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import org.snmp4j.event.{ResponseEvent, ResponseListener}
 import org.snmp4j.mp.MPv3
@@ -25,6 +25,7 @@ import com.codemettle.akkasnmp4j.util.SnmpClient.Messages.{TableFetchComplete, T
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
 import akka.stream.scaladsl.Source
+import akka.util.Helpers
 import scala.concurrent.{Future, Promise}
 
 /**
@@ -57,9 +58,11 @@ object SnmpClient {
         case class TableFetchComplete(event: TableEvent) extends TableFetchEvent
     }
 
+    private final val udpCounter = new AtomicLong(0)
+
     def apply(session: Snmp)(implicit arf: ActorRefFactory): SnmpClient = new SnmpClient(session)
     def apply()(implicit arf: ActorRefFactory): SnmpClient = {
-        val sess = new Snmp(new AkkaUdpTransport("UDP"))
+        val sess = new Snmp(new AkkaUdpTransport(s"UDP${Helpers.base64(udpCounter.getAndIncrement())}"))
 
         // Set up USM for SNMPv3
         val usm = new USM(SecurityProtocols.getInstance, new OctetString(MPv3.createLocalEngineID), 0)
