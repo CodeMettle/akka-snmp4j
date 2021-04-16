@@ -77,6 +77,9 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
     private def tableUtils(implicit options: GetOptions, credOpts: CredOptions): TableUtils = {
         val factory = new DefaultPDUFactory() {
+            setContextName(new OctetString(credOpts.contextName getOrElse ""))
+            setContextEngineID(new OctetString())
+
             override def createPDU(target: snmpTarget): PDU = {
                 val pdu = super.createPDU(target)
 
@@ -94,6 +97,9 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
     private def treeUtils(implicit options: GetOptions, credOpts: CredOptions): TreeUtils = {
         val factory = new DefaultPDUFactory() {
+            setContextName(new OctetString(credOpts.contextName getOrElse ""))
+            setContextEngineID(new OctetString())
+
             override def createPDU(target: snmpTarget): PDU = {
                 val pdu = super.createPDU(target)
 
