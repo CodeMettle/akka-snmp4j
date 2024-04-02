@@ -27,6 +27,7 @@ import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
 import akka.stream.scaladsl.Source
 import akka.util.Helpers
 import scala.concurrent.{Future, Promise}
+import scala.util.control.Exception.handling
 
 /**
  * @author steven
@@ -138,13 +139,15 @@ class SnmpClient(val session: Snmp)(implicit arf: ActorRefFactory) {
 
         val s4jtarget = Target.createTarget(session, addr, getOpts, credOpts, forSet)
 
-        session.send(pdu, s4jtarget, null, new ResponseListener {
-            override def onResponse(event: ResponseEvent): Unit = {
-                session.cancel(event.getRequest, this)
+        handling(classOf[Throwable]).by(p.failure) {
+            session.send(pdu, s4jtarget, null, new ResponseListener {
+                override def onResponse(event: ResponseEvent): Unit = {
+                    session.cancel(event.getRequest, this)
 
-                p success event
-            }
-        })
+                    p success event
+                }
+            })
+        }
 
         p.future
     }
